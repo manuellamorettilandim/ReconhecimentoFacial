@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novo Cadastro Facial - Face Access</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      <div class="brand-icon">👤</div>
+      <div class="brand-text">
+        <h1>Face Access</h1>
+        <span>Embeddings & MediaPipe</span>
+      </div>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">🎥 Verificação</a></li>
+        <li><a href="cadastro.html" class="nav-link active">👤 Novo Cadastro</a></li>
+        <li><a href="pessoas.html" class="nav-link">📋 Pessoas</a></li>
+        <li><a href="calibracao.html" class="nav-link">⚙️ Calibração</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="main-container">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Cadastro Biométrico de Rosto</h2>
+        <p class="page-subtitle">Coleta guiada de 5 amostras de landmarks normalizadas em vetor matemático de 282 números (94 pontos estáveis)</p>
+      </div>
+      <div id="statusBadge" class="video-feedback-badge" style="position: static; transform: none;">
+        🟡 Inicializando...
+      </div>
+    </div>
+
+    <!-- Banner de Alerta para Erros -->
+    <div id="cameraAlert" class="alert-banner alert-danger" style="display: none;"></div>
+
+    <!-- ETAPA 1: Nome e Termo de Consentimento LGPD -->
+    <section id="secaoConsentimento" class="card-form">
+      <h3 style="font-size: 1.4rem; margin-bottom: 1rem; color: #fff;">1. Identificação e Consentimento Informado</h3>
+      
+      <div class="form-group">
+        <label for="inputNome" class="form-label">Nome Completo da Pessoa:</label>
+        <input type="text" id="inputNome" class="form-input" placeholder="Ex: Maria da Silva" autocomplete="off" required>
+      </div>
+
+      <!-- Caixa de Termo LGPD -->
+      <div class="lgpd-box">
+        <div class="lgpd-title">
+          <span>🛡️</span>
+          <span>Termo de Consentimento de Dados Biométricos Sensíveis (LGPD - Lei 13.709/2018)</span>
+        </div>
+        <p class="lgpd-text">
+          Para fins didáticos e controle de acesso, esta aplicação processará a geometria facial do seu rosto utilizando inteligência artificial no navegador.
+        </p>
+        <p class="lgpd-text" style="margin-top: 0.5rem; font-weight: 600; color: #38bdf8;">
+          🔒 GARANTIA DE PRIVACIDADE E MINIMIZAÇÃO:
+        </p>
+        <ul class="lgpd-text" style="margin-left: 1.25rem; margin-top: 0.25rem;">
+          <li><strong>NUNCA gravamos fotos, imagens ou vídeos</strong> em nossos servidores nem em disco.</li>
+          <li>Apenas coordenadas geométricas numéricas (pontos anatômicos) são extraídas e transformadas em um vetor numérico abstrato (embedding de 282 dimensões a partir de 94 pontos estáveis).</li>
+          <li>Os dados salvos não permitem a reconstrução da imagem original do seu rosto.</li>
+          <li>Você pode excluir seus dados a qualquer momento na aba "Pessoas Cadastradas".</li>
+        </ul>
+
+        <div class="lgpd-checkbox-wrapper">
+          <input type="checkbox" id="chkConsentimento">
+          <label for="chkConsentimento" class="lgpd-checkbox-label">
+            Li, compreendi e autorizo expressamente a coleta e processamento dos meus dados biométricos geométricos exclusivamente para os propósitos descritos.
+          </label>
+        </div>
+      </div>
+
+      <button id="btnAvancar" class="btn btn-primary" style="width: 100%;" disabled>
+        Prosseguir para as 5 Capturas Guiadas ➔
+      </button>
+    </section>
+
+    <!-- ETAPA 2: Capturas Guiadas com Câmera (Oculto inicialmente) -->
+    <section id="secaoCaptura" style="display: none;">
+      <!-- Indicador visual das 5 etapas -->
+      <div class="capture-steps-grid">
+        <div class="step-card active" id="stepCard0">
+          <div class="step-num">Passo 1/5</div>
+          <div class="step-title">Olhe de frente</div>
+        </div>
+        <div class="step-card" id="stepCard1">
+          <div class="step-num">Passo 2/5</div>
+          <div class="step-title">Vire levemente à esquerda</div>
+        </div>
+        <div class="step-card" id="stepCard2">
+          <div class="step-num">Passo 3/5</div>
+          <div class="step-title">Vire levemente à direita</div>
+        </div>
+        <div class="step-card" id="stepCard3">
+          <div class="step-num">Passo 4/5</div>
+          <div class="step-title">Levante um pouco o queixo</div>
+        </div>
+        <div class="step-card" id="stepCard4">
+          <div class="step-num">Passo 5/5</div>
+          <div class="step-title">Expressão neutra</div>
+        </div>
+      </div>
+
+      <div class="grid-access">
+        <!-- Câmera com Guia -->
+        <div class="camera-card">
+          <div class="viewport-wrapper">
+            <video id="webcam" playsinline autoplay muted></video>
+            <canvas id="canvasOverlay"></canvas>
+            <div id="faceGuide" class="face-guide-overlay ok"></div>
+            <div id="feedbackBadge" class="video-feedback-badge">Posicione o rosto</div>
+          </div>
+
+          <div class="camera-controls">
+            <label class="checkbox-label">
+              <input type="checkbox" id="chkDrawLandmarks" checked>
+              <span>Exibir malha de landmarks</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Instruções da Captura Atual -->
+        <div class="metrics-panel">
+          <div class="decision-card">
+            <div class="decision-status-label" id="instrucaoNumero">PASSO 1 DE 5</div>
+            <div class="decision-main-text" id="instrucaoTitulo" style="font-size: 1.7rem;">Olhe de frente</div>
+            <div class="decision-sub-text" id="instrucaoDesc">Mantenha os olhos voltados diretamente para a câmera com expressão neutra.</div>
+          </div>
+
+          <div class="math-cards-grid">
+            <div class="math-metric-card">
+              <span class="metric-title">Enquadramento</span>
+              <span class="metric-value" id="statusPoseVal" style="font-size: 1.25rem;">Aguardando...</span>
+              <span class="metric-detail" id="statusPoseDet">Exige exatamente 1 rosto</span>
+            </div>
+            <div class="math-metric-card">
+              <span class="metric-title">Proporção Facial</span>
+              <span class="metric-value" id="tamanhoVal">0%</span>
+              <span class="metric-detail">Mínimo necessário: 15%</span>
+            </div>
+          </div>
+
+          <button id="btnCapturar" class="btn btn-success" style="padding: 1.2rem; font-size: 1.15rem;" disabled>
+            📸 Capturar Posição Atual
+          </button>
+
+          <button id="btnVoltarInicio" class="btn btn-secondary">
+            ⬅️ Cancelar e Voltar
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/cadastro.js"></script>
+</body>
+</html>

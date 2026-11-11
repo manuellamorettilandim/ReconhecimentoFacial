@@ -1,0 +1,31 @@
+{
+  "name": "face-access",
+  "version": "1.0.0",
+  "description": "Plataforma didática de reconhecimento facial por embeddings e MediaPipe",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node tests/test_embedding.js && node tests/test_server_endpoints.js",
+    "test:supabase": "node tests/test_supabase_connection.js",
+    "migrate:supabase": "node scripts/migrar_para_supabase.js"
+  },
+  "keywords": [
+    "mediapipe",
+    "face-landmarker",
+    "embeddings",
+    "procrustes",
+    "kabsch",
+    "biometria",
+    "lgpd",
+    "educacional"
+  ],
+  "author": "Face Access",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.9",
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calibração do Limiar Biométrico - Face Access</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .dist-bar-track {
+      background: rgba(0, 0, 0, 0.4);
+      height: 24px;
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: 0.5rem;
+    }
+    .dist-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.15s ease-out;
+    }
+    .error-rate-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      <div class="brand-icon">⚙️</div>
+      <div class="brand-text">
+        <h1>Face Access</h1>
+        <span>Embeddings & MediaPipe</span>
+      </div>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">🎥 Verificação</a></li>
+        <li><a href="cadastro.html" class="nav-link">👤 Novo Cadastro</a></li>
+        <li><a href="pessoas.html" class="nav-link">📋 Pessoas</a></li>
+        <li><a href="calibracao.html" class="nav-link active">⚙️ Calibração</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="main-container">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Calibração Automática do Limiar Biométrico</h2>
+        <p class="page-subtitle">Ajuste estatístico por percentis (P95 genuíno vs P5 impostor) e minimização de FAR/FRR</p>
+      </div>
+      <div id="statusBadge" class="video-feedback-badge" style="position: static; transform: none;">
+        🟡 Inicializando...
+      </div>
+    </div>
+
+    <!-- Banner de Alerta para Erros -->
+    <div id="cameraAlert" class="alert-banner alert-danger" style="display: none;"></div>
+
+    <div class="grid-access">
+      <!-- Câmera e Distâncias em Tempo Real -->
+      <div class="camera-card">
+        <div class="viewport-wrapper">
+          <video id="webcam" playsinline autoplay muted></video>
+          <canvas id="canvasOverlay"></canvas>
+          <div id="faceGuide" class="face-guide-overlay ok"></div>
+          <div id="feedbackBadge" class="video-feedback-badge">Alinhando rosto...</div>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <h4 style="font-size: 1.05rem; margin-bottom: 0.5rem; color: #fff;">Distância Instantânea para Cada Cadastro (pela MÉDIA):</h4>
+          <div id="listaDistanciasTempoReal" style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <div style="color: var(--text-muted); font-size: 0.95rem;">Aguardando detecção de rosto...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Painel de Coleta de Amostras e Ajuste do Limiar -->
+      <div class="metrics-panel">
+        <!-- Caixa de Ajuste do Limiar Atual -->
+        <div class="calib-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="font-size: 1.2rem; color: #fff;">Limiar do Sistema</h3>
+              <span id="modoDesc" style="font-size: 0.8rem; color: var(--text-muted);">Modo: 94 Pontos Estáveis (RMSD)</span>
+            </div>
+            <span id="valorLimiarAtual" style="font-size: 1.8rem; font-family: monospace; font-weight: 700; color: var(--accent-cyan);">0.050</span>
+          </div>
+
+          <div class="calib-slider-wrapper">
+            <input type="range" id="sliderLimiar" class="calib-slider" min="0.010" max="0.150" step="0.002" value="0.050">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+              <span>0.010 (Ultra rígido)</span>
+              <span>0.050 (Conservador padrão)</span>
+              <span>0.150 (Permissivo)</span>
+            </div>
+          </div>
+
+          <!-- Taxas de Erro em Tempo Real (FAR / FRR) -->
+          <div class="error-rate-box">
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 0.6rem;">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Falso Aceite (FAR)</div>
+              <div id="farValor" style="font-size: 1.3rem; font-family: monospace; font-weight: 700; color: #f87171;">0.0%</div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary);">Impostores aceitos</div>
+            </div>
+            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 0.6rem;">
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Falso Negado (FRR)</div>
+              <div id="frrValor" style="font-size: 1.3rem; font-family: monospace; font-weight: 700; color: #fbbf24;">0.0%</div>
+              <div style="font-size: 0.72rem; color: var(--text-secondary);">Genuínos barrados</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+            <button id="btnSalvarLimiar" class="btn btn-primary" style="flex: 1;">
+              💾 Salvar Limiar em Config
+            </button>
+            <button id="btnAplicarSugerido" class="btn btn-secondary" style="flex: 1;" disabled>
+              ✨ Aplicar Limiar Sugerido
+            </button>
+          </div>
+        </div>
+
+        <!-- Coleta de Amostras Rotuladas -->
+        <div class="calib-box">
+          <h3 style="font-size: 1.15rem; color: #fff; margin-bottom: 0.5rem;">Coletar Amostras de Teste (Genuínas vs Impostoras)</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+            Aponte o rosto para a câmera e registre amostras do titular ("Sou Eu") e de outras pessoas ("É Outro") para calcular os percentis $P_{95}$ e $P_5$.
+          </p>
+
+          <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+            <button id="btnAmostraEu" class="btn btn-success" style="flex: 1;">
+              ➕ Registrar "Sou Eu"
+            </button>
+            <button id="btnAmostraOutro" class="btn btn-danger" style="flex: 1;">
+              ➕ Registrar "É Outro"
+            </button>
+          </div>
+
+          <!-- Distribuição Estatística com Percentis -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 0.85rem;">
+              <div style="color: #34d399; font-weight: 700; font-size: 0.95rem;">🟢 Genuínas ("Sou Eu")</div>
+              <div style="font-size: 0.82rem; margin-top: 0.4rem; color: var(--text-secondary); line-height: 1.5;">
+                Amostras: <strong id="qtdEu" style="color: #fff;">0</strong><br>
+                Mín: <span id="minEu">--</span> | Méd: <span id="medEu">--</span><br>
+                <strong>Percentil 95 (P95):</strong> <span id="p95Eu" style="color: #34d399; font-weight: 700;">--</span>
+              </div>
+            </div>
+
+            <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 0.85rem;">
+              <div style="color: #f87171; font-weight: 700; font-size: 0.95rem;">🔴 Impostoras ("É Outro")</div>
+              <div style="font-size: 0.82rem; margin-top: 0.4rem; color: var(--text-secondary); line-height: 1.5;">
+                Amostras: <strong id="qtdOutro" style="color: #fff;">0</strong><br>
+                Mín: <span id="minOutro">--</span> | Méd: <span id="medOutro">--</span><br>
+                <strong>Percentil 5 (P5):</strong> <span id="p5Outro" style="color: #f87171; font-weight: 700;">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caixa de Sugestão Automática -->
+          <div id="boxSugestao" style="background: rgba(59, 130, 246, 0.1); border: 1px dashed rgba(59, 130, 246, 0.4); border-radius: 8px; padding: 0.85rem; font-size: 0.9rem;">
+            💡 <strong>Instrução Didática:</strong> Registre ao menos 5 amostras do titular ("Sou Eu") com variações leves e 5 amostras de pessoas diferentes ("É Outro") para calcular o ponto médio entre o $P_{95}$ das genuínas e o $P_5$ das impostoras.
+          </div>
+
+          <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 0.85rem;">
+              <label for="selectModo" style="color: var(--text-secondary); margin-right: 0.5rem;">Modo de Embedding:</label>
+              <select id="selectModo" style="background: rgba(0,0,0,0.4); color: #fff; border: 1px solid rgba(255,255,255,0.2); padding: 0.3rem 0.6rem; border-radius: 4px;">
+                <option value="landmarks">Landmarks (94 Pontos Estáveis)</option>
+                <option value="modelo">Modelo Neural (MobileFaceNet ONNX)</option>
+              </select>
+            </div>
+            <button id="btnLimparAmostras" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+              Limpar Amostras
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/calibracao.js"></script>
+</body>
+</html>

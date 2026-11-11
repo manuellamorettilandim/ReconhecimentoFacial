@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pessoas Cadastradas - Face Access</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      <div class="brand-icon">📋</div>
+      <div class="brand-text">
+        <h1>Face Access</h1>
+        <span>Embeddings & MediaPipe</span>
+      </div>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">🎥 Verificação</a></li>
+        <li><a href="cadastro.html" class="nav-link">👤 Novo Cadastro</a></li>
+        <li><a href="pessoas.html" class="nav-link active">📋 Pessoas</a></li>
+        <li><a href="calibracao.html" class="nav-link">⚙️ Calibração</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Container Principal -->
+  <main class="main-container">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Pessoas Cadastradas na Base</h2>
+        <p class="page-subtitle">Gerenciamento de identidades biométricas salvas em <code>data/pessoas.json</code></p>
+      </div>
+      <a href="cadastro.html" class="btn btn-primary">
+        ➕ Cadastrar Nova Pessoa
+      </a>
+    </div>
+
+    <!-- Banner Didático LGPD -->
+    <div class="lgpd-box" style="margin-bottom: 2rem;">
+      <div class="lgpd-title">
+        <span>⚖️</span>
+        <span>Direito de Eliminação e Minimização de Dados (LGPD Art. 18)</span>
+      </div>
+      <p class="lgpd-text">
+        Esta listagem consome a rota pública <code>GET /pessoas</code>. Em estrita conformidade com o princípio da <strong>minimização de dados</strong>, o servidor NUNCA devolve os vetores numéricos de embeddings para o navegador nessa listagem. O titular dos dados possui o direito incondicional de excluir seu registro biométrico a qualquer momento através do botão "Excluir".
+      </p>
+    </div>
+
+    <!-- Tabela de Cadastros -->
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>ID Biométrico</th>
+            <th>Data de Cadastro</th>
+            <th>Versão do Modelo</th>
+            <th style="text-align: right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaPessoasCorpo">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 3rem;">
+              Carregando dados da base...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module" src="js/pessoas.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Access - Reconhecimento Facial por Embeddings</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Barra de Navegação -->
+  <header class="navbar">
+    <a href="index.html" class="brand">
+      <div class="brand-icon">👁️</div>
+      <div class="brand-text">
+        <h1>Face Access</h1>
+        <span>Embeddings & MediaPipe</span>
+      </div>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="nav-link active">🎥 Verificação</a></li>
+        <li><a href="cadastro.html" class="nav-link">👤 Novo Cadastro</a></li>
+        <li><a href="pessoas.html" class="nav-link">📋 Pessoas</a></li>
+        <li><a href="calibracao.html" class="nav-link">⚙️ Calibração</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-container">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Controle de Acesso Biométrico</h2>
+        <p class="page-subtitle">Demonstração didática: extração de 478 landmarks, Procrustes 3D e validação de liveness</p>
+      </div>
+      <div id="statusBadge" class="video-feedback-badge" style="position: static; transform: none;">
+        🟡 Inicializando MediaPipe...
+      </div>
+    </div>
+
+    <!-- Banner de Alerta para Câmera / Erros -->
+    <div id="cameraAlert" class="alert-banner alert-danger" style="display: none;"></div>
+
+    <div class="grid-access">
+      <!-- Coluna da Câmera -->
+      <div class="camera-card">
+        <div class="viewport-wrapper">
+          <video id="webcam" playsinline autoplay muted></video>
+          <canvas id="canvasOverlay"></canvas>
+          <div id="faceGuide" class="face-guide-overlay"></div>
+          <div id="feedbackBadge" class="video-feedback-badge">Posicione o rosto na moldura</div>
+        </div>
+
+        <div class="camera-controls">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDrawLandmarks" checked>
+            <span>Desenhar malha facial (468 landmarks)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkAutoReset" checked>
+            <span>Monitoramento contínuo</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Coluna do Painel Didático (AULA) -->
+      <div class="metrics-panel">
+        <!-- Cartão de Decisão Final -->
+        <div id="decisionCard" class="decision-card">
+          <div class="decision-status-label" id="decisionStatus">AGUARDANDO ROSTO</div>
+          <div class="decision-main-text" id="decisionMain">Aproxime-se</div>
+          <div class="decision-sub-text" id="decisionSub">Nenhum rosto analisado no momento</div>
+        </div>
+
+        <!-- Barra de Progresso de Frames Consecutivos (0 a 10) -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>Confirmação Temporal (10 frames consecutivos)</span>
+            <span id="framesText" style="color: var(--accent-cyan); font-family: monospace; font-size: 1.1rem;">0 / 10</span>
+          </div>
+          <div class="progress-track">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <div class="progress-ticks">
+            <span>0</span>
+            <span>2</span>
+            <span>4</span>
+            <span>6</span>
+            <span>8</span>
+            <span>10 frames</span>
+          </div>
+        </div>
+
+        <!-- Grade de Métricas Didáticas da Aula (Diagnóstico e Transparência) -->
+        <div class="math-cards-grid">
+          <!-- 1º Candidato mais próximo -->
+          <div class="math-metric-card">
+            <span class="metric-title">1º Candidato (Melhor)</span>
+            <span class="metric-value" id="candidatoNome" style="font-size: 1.35rem;">--</span>
+            <span class="metric-detail" id="candidatoDetalhe">d = --</span>
+          </div>
+
+          <!-- 2º Candidato e Margem -->
+          <div class="math-metric-card">
+            <span class="metric-title">2º Candidato (Margem)</span>
+            <span class="metric-value" id="segundoNome" style="font-size: 1.35rem;">--</span>
+            <span class="metric-detail" id="segundoDetalhe">Margem: -- (exige &ge; 1.3x)</span>
+          </div>
+
+          <!-- Média dos 10 Frames Consecutivos (Decisão Real) -->
+          <div class="math-metric-card">
+            <span class="metric-title">Média 10 Frames (RMSD)</span>
+            <span class="metric-value" id="distanciaMedia10">--</span>
+            <span class="metric-detail" id="distanciaFormula">Decisão pela média temporal</span>
+          </div>
+
+          <!-- Limiar Atual -->
+          <div class="math-metric-card">
+            <span class="metric-title">Limiar de Decisão</span>
+            <span class="metric-value" id="limiarValor">0.050</span>
+            <span class="metric-detail" id="modoLabel">Modo: 94 Pontos Estáveis</span>
+          </div>
+
+          <!-- Liveness / Piscada (EAR) -->
+          <div class="math-metric-card" style="grid-column: span 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span class="metric-title">Liveness por Piscada (EAR)</span>
+                <div class="metric-value" id="earValor" style="font-size: 1.4rem;">0.000</div>
+              </div>
+              <div id="piscadaBadge" class="liveness-badge">
+                👁️ Aguardando piscada
+              </div>
+            </div>
+            <span class="metric-detail">Prova de vida: exige fechar e abrir os olhos antes da liberação.</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+          <button id="btnReset" class="btn btn-secondary" style="flex: 1;">
+            🔄 Reiniciar Verificação
+          </button>
+          <a href="calibracao.html" class="btn btn-secondary" style="flex: 1;">
+            ⚙️ Calibrar Limiar
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Lógica da Aplicação -->
+  <script type="module" src="js/acesso.js"></script>
+</body>
+</html>
